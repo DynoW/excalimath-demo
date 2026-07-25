@@ -2,6 +2,30 @@ import { useState, useCallback } from "react";
 import { Excalidraw } from "@excalidraw/excalidraw";
 import { ExcaliMath } from "@excalimath/core";
 
+type SavedScene = {
+  elements: readonly any[];
+  files?: Record<string, any>;
+};
+
+function readSavedScene(): SavedScene | undefined {
+  try {
+    const scene = localStorage.getItem("excalidraw-scene");
+    if (scene) {
+      const parsed = JSON.parse(scene);
+      if (parsed && Array.isArray(parsed.elements)) {
+        return {
+          elements: parsed.elements,
+          files: parsed.files && typeof parsed.files === "object" ? parsed.files : undefined,
+        };
+      }
+    }
+  } catch (error) {
+    console.error("Failed to restore initial data", error);
+  }
+
+  return undefined;
+}
+
 export function App() {
   const [excalidrawAPI, setExcalidrawAPI] = useState<any>(null);
   const [lastSavedTheme, setLastSavedTheme] = useState<string | null>(() => {
@@ -9,30 +33,28 @@ export function App() {
   });
 
   const [initialData] = useState(() => {
-    try {
-      const elements = localStorage.getItem("excalidraw-elements");
-      const savedTheme = localStorage.getItem("excalimath-theme");
-      
-      const parsedElements = elements ? JSON.parse(elements) : [];
-      const initialElements = Array.isArray(parsedElements) ? parsedElements : [];
-      
-      return {
-        elements: initialElements,
-        appState: savedTheme ? { theme: savedTheme as "light" | "dark" } : undefined,
-      };
-    } catch (error) {
-      console.error("Failed to restore initial data", error);
+    const savedScene = readSavedScene();
+    const savedTheme = localStorage.getItem("excalimath-theme");
+
+    if (!savedScene) {
+      return undefined;
     }
-    return undefined;
+
+    return {
+      elements: savedScene.elements,
+      ...(savedScene.files ? { files: savedScene.files } : {}),
+      appState: savedTheme ? { theme: savedTheme as "light" | "dark" } : undefined,
+    };
   });
 
   const handleExcalidrawAPI = useCallback((api: any) => {
     setExcalidrawAPI(api);
   }, []);
 
-  const handleChange = useCallback((elements: readonly any[], appState: any) => {
+  const handleChange = useCallback((elements: readonly any[], appState: any, files: Record<string, any>) => {
     try {
-      localStorage.setItem("excalidraw-elements", JSON.stringify(elements));
+      const scene = { elements, files };
+      localStorage.setItem("excalidraw-scene", JSON.stringify(scene));
     } catch (error) {
       console.error("Failed to save Excalidraw data", error);
     }
