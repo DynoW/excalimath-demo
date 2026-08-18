@@ -2,6 +2,8 @@ import { useState, useCallback, useEffect } from "react";
 import { Excalidraw, parseLibraryTokensFromUrl } from "@excalidraw/excalidraw";
 import { ExcaliMath } from "@excalimath/core";
 
+const LIBRARY_KEY = "excalidraw-library";
+
 type SavedScene = {
   elements: readonly any[];
   files?: Record<string, any>;
@@ -26,6 +28,22 @@ function readSavedScene(): SavedScene | undefined {
   return undefined;
 }
 
+function readSavedLibrary(): any[] | undefined {
+  try {
+    const data = localStorage.getItem(LIBRARY_KEY);
+    if (data) {
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+    }
+  } catch (error) {
+    console.error("Failed to restore library", error);
+  }
+
+  return undefined;
+}
+
 export function App() {
   const [excalidrawAPI, setExcalidrawAPI] = useState<any>(null);
   const [lastSavedTheme, setLastSavedTheme] = useState<string | null>(() => {
@@ -35,16 +53,26 @@ export function App() {
   const [initialData] = useState(() => {
     const savedScene = readSavedScene();
     const savedTheme = localStorage.getItem("excalimath-theme");
+    const savedLibrary = readSavedLibrary();
 
-    if (!savedScene) {
-      return undefined;
+    const data: any = {};
+
+    if (savedScene) {
+      data.elements = savedScene.elements;
+      if (savedScene.files) {
+        data.files = savedScene.files;
+      }
     }
 
-    return {
-      elements: savedScene.elements,
-      ...(savedScene.files ? { files: savedScene.files } : {}),
-      appState: savedTheme ? { theme: savedTheme as "light" | "dark" } : undefined,
-    };
+    if (savedLibrary) {
+      data.libraryItems = savedLibrary;
+    }
+
+    if (savedTheme) {
+      data.appState = { theme: savedTheme as "light" | "dark" };
+    }
+
+    return Object.keys(data).length > 0 ? data : undefined;
   });
 
   const handleExcalidrawAPI = useCallback((api: any) => {
@@ -87,14 +115,12 @@ export function App() {
       console.error("Failed to save Excalidraw data", error);
     }
 
-    // Detect theme changes from appState
     const currentTheme = appState?.theme;
     if (currentTheme && currentTheme !== lastSavedTheme) {
       try {
         localStorage.setItem("excalimath-theme", currentTheme);
         setLastSavedTheme(currentTheme);
-        
-        // Apply theme class to html
+
         if (currentTheme === "dark") {
           document.documentElement.classList.add("dark");
         } else {
@@ -106,12 +132,21 @@ export function App() {
     }
   }, [lastSavedTheme]);
 
+  const handleLibraryChange = useCallback((items: readonly any[]) => {
+    try {
+      localStorage.setItem(LIBRARY_KEY, JSON.stringify(items));
+    } catch (error) {
+      console.error("Failed to save library", error);
+    }
+  }, []);
+
   return (
     <div style={{ width: "100vw", height: "100vh", position: "relative" }}>
       <Excalidraw
         excalidrawAPI={handleExcalidrawAPI}
         initialData={initialData}
         onChange={handleChange}
+        onLibraryChange={handleLibraryChange}
         renderTopRightUI={() =>
           excalidrawAPI ? (
             <ExcaliMath
