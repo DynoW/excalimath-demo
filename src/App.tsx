@@ -1,5 +1,5 @@
-import { useState, useCallback } from "react";
-import { Excalidraw } from "@excalidraw/excalidraw";
+import { useState, useCallback, useEffect } from "react";
+import { Excalidraw, parseLibraryTokensFromUrl } from "@excalidraw/excalidraw";
 import { ExcaliMath } from "@excalimath/core";
 
 type SavedScene = {
@@ -50,6 +50,34 @@ export function App() {
   const handleExcalidrawAPI = useCallback((api: any) => {
     setExcalidrawAPI(api);
   }, []);
+
+  // Handle #addLibrary hash for importing libraries from URL
+  useEffect(() => {
+    if (!excalidrawAPI) return;
+
+    const tokens = parseLibraryTokensFromUrl();
+    if (!tokens) return;
+
+    (async () => {
+      try {
+        const response = await fetch(decodeURIComponent(tokens.libraryUrl));
+        const blob = await response.blob();
+        await excalidrawAPI.updateLibrary({
+          libraryItems: blob,
+          merge: true,
+          prompt: tokens.idToken !== excalidrawAPI.id,
+          defaultStatus: "published",
+          openLibraryMenu: true,
+        });
+      } catch (error) {
+        console.error("Failed to import library from URL", error);
+      } finally {
+        const hash = new URLSearchParams(window.location.hash.slice(1));
+        hash.delete("addLibrary");
+        window.history.replaceState({}, "", `#${hash.toString()}`);
+      }
+    })();
+  }, [excalidrawAPI]);
 
   const handleChange = useCallback((elements: readonly any[], appState: any, files: Record<string, any>) => {
     try {
