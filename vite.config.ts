@@ -7,8 +7,29 @@ import path from "path";
 const manifestPath = path.resolve(__dirname, "public/manifest.webmanifest");
 const pwaManifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
 
+// Excalidraw loads its lazily-imported chunks (export/vendor libs) and locales
+// from <EXCALIDRAW_ASSET_PATH>/excalidraw-assets at runtime, so the full folder
+// must ship with every build and stay in sync with the installed version.
+function syncExcalidrawAssets() {
+  return {
+    name: "sync-excalidraw-assets",
+    buildStart() {
+      const src = path.resolve(
+        __dirname,
+        "node_modules/@excalidraw/excalidraw/dist/excalidraw-assets"
+      );
+      const dest = path.resolve(__dirname, "public/excalidraw-assets");
+      if (!fs.existsSync(src)) return;
+      fs.rmSync(dest, { recursive: true, force: true });
+      fs.cpSync(src, dest, { recursive: true });
+      fs.rmSync(path.join(dest, "locales"), { recursive: true, force: true });
+    },
+  };
+}
+
 export default defineConfig({
   plugins: [
+    syncExcalidrawAssets(),
     react(),
     VitePWA({
       registerType: "autoUpdate",
