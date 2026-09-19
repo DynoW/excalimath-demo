@@ -79,6 +79,32 @@ export function App() {
     setExcalidrawAPI(api);
   }, []);
 
+  // Excalidraw 0.17.x caches each element's rendered canvas in a WeakMap keyed
+  // by element identity and only regenerates it on zoom/theme/bound-text
+  // changes. When initialData carries files whose images decode after the
+  // first render, that cached canvas keeps the placeholder. Re-adding the
+  // files once the scene is ready makes Scene.addFiles() drop the image and
+  // shape caches for those elements, which forces a correct re-render.
+  useEffect(() => {
+    if (!excalidrawAPI) return;
+    let cancelled = false;
+    let tries = 0;
+    const run = () => {
+      if (cancelled) return;
+      const files = excalidrawAPI.getFiles?.();
+      const elements = excalidrawAPI.getSceneElements?.() || [];
+      if (files && Object.keys(files).length > 0 && elements.length > 0) {
+        excalidrawAPI.addFiles(Object.values(files));
+        return;
+      }
+      if (tries++ < 20) setTimeout(run, 100);
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [excalidrawAPI]);
+
   // Handle #addLibrary hash for importing libraries from URL
   useEffect(() => {
     if (!excalidrawAPI) return;

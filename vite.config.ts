@@ -17,6 +17,7 @@ export default defineConfig({
       },
       workbox: {
         // Don't precache source maps or large chunks
+        globPatterns: ["**/*.{js,css,html}", "excalidraw-assets/*.woff2"],
         globIgnores: ["**/*.map", "**/*.chunk.js"],
         runtimeCaching: [
           {

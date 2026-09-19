@@ -84,6 +84,11 @@
       .seo-fallback small { color: #6b7280; }
     </style>
 
+    <!-- Self-hosted Excalidraw fonts; must be set before the app bundle loads -->
+    <script>
+      window.EXCALIDRAW_ASSET_PATH = "/";
+    </script>
+
     <!-- Apply saved theme before React renders to prevent white flash -->
     <script>
       try {
